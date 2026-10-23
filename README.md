@@ -18,3 +18,16 @@ Served by GitHub Pages. Each Event Maker page links to them inside its codeit co
 
 Edit a file, commit and push: every page picks up the change within a few minutes
 (GitHub Pages caches for about 10 minutes).
+
+## Hosting whole pages (loader)
+
+Page HTML can also live here in `pages/`. Event Maker then only needs this, pasted once:
+
+```html
+<div class='container ukl-full {{ settings.spacing }}' data-section-id='{{ section.id }}' data-section-type='codeit'>
+  <div id="ukl-page" data-page="leaders-group"></div>
+  <script src="https://deividuska.github.io/ukreiif-leaders-group/loader.js"></script>
+</div>
+```
+
+`data-page` is the file name in `pages/` without `.html`. `loader.js` fetches that page and loads `ukl.css` and `ukl.js`.
