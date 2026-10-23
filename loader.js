@@ -6,6 +6,9 @@
    then loads ukl.css and ukl.js (carousels + HubSpot form). */
 
 (function () {
+  // Bump this whenever ukl.css changes, so browsers fetch the new file instead of a cached one
+  var CSS_VERSION = '1.0.1';
+
   var root = document.getElementById('ukl-page');
   if (!root) return;
 
@@ -14,7 +17,7 @@
 
   var css = document.createElement('link');
   css.rel = 'stylesheet';
-  css.href = base + 'ukl.css';
+  css.href = base + 'ukl.css?v=' + CSS_VERSION;
   document.head.appendChild(css);
 
   // no-cache: the browser re-checks GitHub each visit, so a push shows up as soon as Pages republishes
