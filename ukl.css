@@ -1,0 +1,128 @@
+/* ===== UKREiiF Leaders Group – shared styles for all Leaders Group pages =====
+   Hosted on GitHub Pages and linked from each Event Maker page.
+   Everything is scoped to .ukl so it cannot clash with the theme. */
+
+/* Remove Event Maker's container padding/width so the section runs edge to edge */
+.container.ukl-full { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+.container[data-section-type='codeit']:has(.ukl) { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+.ukl { --navy:#1b2a5e; --red:#d71920; --grey:#ececec; --text:#444; font-family: Arial, Helvetica, sans-serif; color: var(--text); background: var(--grey); }
+.ukl *, .ukl *::before, .ukl *::after { box-sizing: border-box; }
+.ukl img { display: block; max-width: 100%; }
+.ukl a { text-decoration: none; }
+.ukl-wrap { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
+
+/* Buttons */
+.ukl-btn { display: inline-block; background: var(--red); color: #fff; font-weight: 700; font-size: 13px; text-transform: uppercase; padding: 12px 28px; transition: background .2s; }
+.ukl-btn:hover { background: #b0141a; color: #fff; }
+.ukl-center { text-align: center; margin-top: 30px; }
+
+/* Hero */
+.ukl-hero { position: relative; background: #8a9099 url('https://mobicheckin-assets.s3.eu-west-1.amazonaws.com/uploads/events/69df82cc6ed3fe5d91ba9333/assets-folder69e6372faa79fb2d7e82614c/Etex-announce-UKREiiF-2025-pavilion_d8c23ac5-0123-428d-9a8d-a0b2cfe739bf.jpg') center/cover no-repeat; padding: 60px 0; }
+.ukl-hero::before { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,.55); }
+.ukl-hero .ukl-wrap { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+.ukl-hero h1 { color: var(--navy); font-size: 46px; line-height: 1.05; margin: 0 0 16px; text-transform: uppercase; }
+.ukl-hero h2 { color: var(--navy); font-size: 20px; font-style: italic; text-transform: uppercase; margin: 0 0 20px; }
+.ukl-hero p { font-size: 15px; line-height: 1.6; margin: 0 0 14px; }
+.ukl-hero-logo { width: 260px; margin-top: 20px; }
+.ukl-hero-btns { display: flex; flex-direction: column; gap: 16px; }
+.ukl-hero-btns .ukl-btn { text-align: center; padding: 18px; font-size: 14px; }
+
+/* Sections & cards */
+.ukl-section { padding: 40px 0; }
+.ukl-panel { background: #fff; padding: 30px 20px; }
+.ukl-title { text-align: center; color: var(--navy); font-size: 30px; margin: 0 0 24px; }
+.ukl-card { background: #fff; border-left: 4px solid var(--red); padding: 30px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.ukl-card h4 { color: var(--navy); font-size: 18px; margin: 0 0 8px; }
+.ukl-card h3 { color: var(--navy); font-size: 28px; line-height: 1.25; margin: 0 0 16px; }
+.ukl-date { color: var(--red); font-weight: 700; font-size: 14px; margin: 0 0 6px; }
+.ukl-venue { color: var(--navy); font-weight: 700; font-size: 14px; margin: 0 0 24px; }
+.ukl-label { color: var(--navy); font-weight: 700; font-size: 14px; margin: 24px 0 14px; }
+.ukl-two { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.ukl-two .ukl-card h3 { font-size: 18px; }
+
+/* People */
+.ukl-people { display: flex; flex-wrap: wrap; gap: 20px; }
+.ukl-person { width: 240px; text-align: center; font-size: 12px; }
+.ukl-two .ukl-person { width: calc(50% - 10px); }
+.ukl-person img.ukl-photo { width: 100%; aspect-ratio: 1/1; object-fit: cover; margin-bottom: 10px; }
+.ukl-person strong { display: block; color: var(--navy); font-size: 13px; margin-bottom: 4px; }
+.ukl-person span { display: block; line-height: 1.4; }
+.ukl-person img.ukl-logo { height: 40px; margin: 10px auto 0; }
+
+/* Carousel (shared by attendees + members) */
+.ukl-carousel { position: relative; }
+.ukl-track { display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-behavior: smooth; scrollbar-width: none; }
+.ukl-track::-webkit-scrollbar { display: none; }
+.ukl-track > * { flex: 0 0 calc(25% - 15px); scroll-snap-align: start; }
+.ukl-track .ukl-person { width: auto; }
+.ukl-arrow { position: absolute; top: 40%; transform: translateY(-50%); width: 36px; height: 36px; border: 0; background: rgba(255,255,255,.85); color: var(--navy); font-size: 22px; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.2); z-index: 2; }
+.ukl-arrow:hover { background: #fff; }
+.ukl-prev { left: -10px; }
+.ukl-next { right: -10px; }
+
+/* Members carousel */
+.ukl-members h3 { color: var(--navy); font-size: 18px; text-transform: uppercase; margin: 0 0 20px; }
+.ukl-members .ukl-carousel { padding: 0 50px; }
+.ukl-members .ukl-track > * { flex-basis: calc(33.333% - 14px); }
+.ukl-members .ukl-arrow { top: 50%; background: none; box-shadow: none; font-size: 30px; }
+.ukl-members .ukl-prev { left: 0; }
+.ukl-members .ukl-next { right: 0; }
+.ukl-member { display: flex; align-items: center; justify-content: center; height: 80px; }
+.ukl-member img { max-height: 60px; }
+
+/* Video */
+.ukl-video { position: relative; aspect-ratio: 16/9; background: #555; }
+.ukl-video video, .ukl-video iframe, .ukl-video img { width: 100%; height: 100%; object-fit: cover; border: 0; }
+
+/* Join */
+.ukl-join h3 { color: var(--navy); font-size: 18px; text-transform: uppercase; margin: 0 0 16px; }
+.ukl-join p { color: var(--navy); font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
+#ukl-form { margin-top: 30px; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  .ukl-hero .ukl-wrap, .ukl-two { grid-template-columns: 1fr; }
+  .ukl-hero h1 { font-size: 34px; }
+  .ukl-track > * { flex-basis: calc(50% - 10px); }
+  .ukl-members .ukl-track > * { flex-basis: calc(50% - 10px); }
+}
+@media (max-width: 560px) {
+  .ukl-card { padding: 20px; }
+  .ukl-card h3 { font-size: 22px; }
+  .ukl-person, .ukl-two .ukl-person { width: 100%; }
+  .ukl-track > *, .ukl-members .ukl-track > * { flex-basis: 80%; }
+  .ukl-prev { left: 0; } .ukl-next { right: 0; }
+}
+
+/* ===== Single event pages ===== */
+.ukl-event-head { padding: 40px 0 30px; }
+.ukl-event-head h4 { color: var(--navy); font-size: 26px; margin: 0 0 10px; }
+.ukl-event-head h1 { color: #333; font-size: 30px; line-height: 1.25; margin: 0 0 16px; max-width: 860px; }
+.ukl-event-head p { color: #333; font-weight: 700; font-size: 15px; margin: 0 0 10px; }
+.ukl-bar { background: var(--navy); color: #fff; font-weight: 700; font-size: 14px; padding: 8px 12px; margin: 0 0 16px; }
+.ukl-block { padding-bottom: 30px; }
+
+.ukl-speakers { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.ukl-speaker { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: #fff; padding: 20px; font-size: 13px; }
+.ukl-speaker .ukl-photo { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
+.ukl-quote { color: #2a4aa0; font: 700 110px/0.8 Georgia, serif; height: 60px; overflow: hidden; }
+.ukl-bio { color: #333; font-size: 13px; line-height: 1.6; margin: 20px 0 0; }
+.ukl-speaker-info { margin-top: 14px; }
+
+.ukl-attendees { display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+.ukl-attendee { background: #fff; padding: 20px; font-size: 12px; }
+.ukl-attendee .ukl-photo { width: 100%; aspect-ratio: 1/1; object-fit: cover; }
+
+.ukl-speaker strong, .ukl-attendee strong { display: block; color: var(--navy); font-size: 14px; margin: 14px 0 8px; }
+.ukl-speaker-info strong { margin-top: 0; }
+.ukl-speaker span, .ukl-attendee span { display: block; color: var(--navy); line-height: 1.5; margin-bottom: 6px; }
+.ukl-speaker .ukl-logo, .ukl-attendee .ukl-logo { max-height: 50px; max-width: 160px; margin-top: 14px; }
+
+@media (max-width: 900px) {
+  .ukl-speakers { grid-template-columns: 1fr; }
+  .ukl-attendees { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .ukl-event-head h1 { font-size: 22px; }
+  .ukl-attendees { grid-template-columns: 1fr; }
+}
