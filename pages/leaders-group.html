@@ -179,11 +179,13 @@
   </section>
 
   <!-- ===== VIDEO ===== -->
-  <section class="ukl-section">
+  <!-- Desktop/tablet only: hidden on phones in ukl.css, and media= stops phones downloading the file -->
+  <section class="ukl-section ukl-video-section">
     <div class="ukl-wrap">
       <div class="ukl-video">
-        <!-- Archive copy of the promo video &#8211; swap src for your own hosted file -->
-        <video src="https://web.archive.org/web/20261015231358im_/https://www.ukreiif.com/content/uploads/sites/3/2024/08/Leaders-Group-2024-Promo_1.mp4" controls muted loop playsinline></video>
+        <video autoplay muted loop playsinline controls>
+          <source src="https://mobicheckin-assets.s3.eu-west-1.amazonaws.com/uploads/events/6a9540aef3ad3f312208f26d/assets-folder6a9540d5f3ad3f312208f64d/Leaders-Group-2024-Promo_1_35223c13-4d6e-42a5-8b38-f8014b917603.mp4" type="video/mp4" media="(min-width: 768px)">
+        </video>
       </div>
     </div>
   </section>
