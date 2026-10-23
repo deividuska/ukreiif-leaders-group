@@ -351,6 +351,13 @@
   border: 0;
 }
 
+/* Promo video is ~100 MB, so it's desktop/tablet only (matches media= on its <source>) */
+@media (max-width: 767px) {
+  .ukl-video-section {
+    display: none;
+  }
+}
+
 /* Join */
 .ukl-join h3 {
   color: var(--navy);

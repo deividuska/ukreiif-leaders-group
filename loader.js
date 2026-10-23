@@ -7,7 +7,7 @@
 
 (function () {
   // Bump this whenever ukl.css changes, so browsers fetch the new file instead of a cached one
-  var CSS_VERSION = '1.0.1';
+  var CSS_VERSION = '1.0.2';
 
   var root = document.getElementById('ukl-page');
   if (!root) return;
