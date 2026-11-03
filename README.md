@@ -31,3 +31,29 @@ Page HTML can also live here in `pages/`. Event Maker then only needs this, past
 ```
 
 `data-page` is the file name in `pages/` without `.html`. `loader.js` fetches that page and loads `ukl.css` and `ukl.js`.
+
+## Sync from WordPress
+
+`sync/sync_wordpress.py` reads the public Leaders Group pages on ukreiif.com and updates
+`pages/` to match: guest speakers, guest attendees and member logos. Event titles, dates,
+the Join form and the video are not touched.
+
+GitHub runs it every hour (`.github/workflows/sync-wordpress.yml`). When something changed it
+opens a pull request called **Sync from WordPress** listing what was added, removed or changed.
+Merge it to publish. Nothing changes on the site until you merge.
+
+- **Run it now:** Actions tab → Sync from WordPress → Run workflow.
+- **Which events / which parts:** `EVENTS` and `SYNC` at the top of the script.
+- **Safety:** if WordPress shows an empty list, fails to load, or our page layout isn't recognised,
+  the run stops, changes nothing and shows as failed in the Actions tab.
+- **People added only here** (not on WordPress) are removed by the next sync. Add them on WordPress.
+
+Run locally to preview without changing files:
+
+```bash
+pip install -r sync/requirements.txt
+python sync/sync_wordpress.py --dry-run
+```
+
+One-time GitHub setting: Settings → Actions → General → tick
+"Allow GitHub Actions to create and approve pull requests".

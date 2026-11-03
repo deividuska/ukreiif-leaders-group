@@ -1,0 +1,44 @@
+# Checks ukreiif.com every hour and opens a pull request when Leaders Group
+# speakers, attendees or member logos have changed. Merge it to publish.
+name: Sync from WordPress
+
+on:
+  schedule:
+    - cron: '17 * * * *'   # every hour, at :17
+  workflow_dispatch:        # "Run workflow" button in the Actions tab
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: wordpress-sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r sync/requirements.txt
+
+      - name: Compare with WordPress
+        run: python sync/sync_wordpress.py --summary "$RUNNER_TEMP/summary.md"
+
+      - name: Show summary on the run page
+        if: always()
+        run: cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Open or update the pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: wordpress-sync
+          delete-branch: true
+          add-paths: pages/*.html
+          commit-message: Sync Leaders Group content from WordPress
+          title: Sync from WordPress
+          body-path: ${{ runner.temp }}/summary.md
