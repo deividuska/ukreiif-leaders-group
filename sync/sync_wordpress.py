@@ -13,6 +13,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 
 from bs4 import BeautifulSoup
@@ -48,8 +49,15 @@ def fetch(url):
     # The query string skips the site's page cache, so we always see the latest version
     req = urllib.request.Request(f'{url}?sync={int(time.time())}',
                                  headers={'User-Agent': 'ukreiif-leaders-group-sync'})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return r.read().decode('utf-8')
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return r.read().decode('utf-8')
+    except urllib.error.HTTPError as e:
+        by = 'Cloudflare' if 'cloudflare' in (e.headers.get('Server') or '').lower() else e.headers.get('Server') or 'the site'
+        raise Stop(f'{url} answered {e.code} ({e.reason}), blocked by {by}'
+                   + (f', ray id {e.headers["cf-ray"]}' if e.headers.get('cf-ray') else ''))
+    except urllib.error.URLError as e:
+        raise Stop(f'{url} could not be reached: {e.reason}')
 
 
 def text(s):
@@ -358,6 +366,16 @@ def sync_members(page, name, members):
 
 # ---------- run ----------
 
+def write_summary(path, summary):
+    """Save the summary for the pull request, and show it on the GitHub run page."""
+    if path:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(summary + '\n')
+    if os.environ.get('GITHUB_STEP_SUMMARY'):
+        with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
+            f.write(summary + '\n')
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--dry-run', action='store_true', help='show changes without writing files')
@@ -395,9 +413,7 @@ def main():
     except Stop as e:
         msg = f'STOPPED, nothing was changed: {e}'
         print(msg, file=sys.stderr)
-        if args.summary:
-            with open(args.summary, 'w', encoding='utf-8') as f:
-                f.write(msg + '\n')
+        write_summary(args.summary, msg)
         sys.exit(1)
 
     changed = [name for name in files if files[name] != original[name]]
@@ -411,9 +427,7 @@ def main():
         lines = ['No changes: our pages match WordPress.']
     summary = '\n'.join(lines)
     print(summary)
-    if args.summary:
-        with open(args.summary, 'w', encoding='utf-8') as f:
-            f.write(summary + '\n')
+    write_summary(args.summary, summary)
 
     if not args.dry_run:
         for name in changed:

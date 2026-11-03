@@ -1,5 +1,8 @@
 # Checks ukreiif.com every hour and opens a pull request when Leaders Group
 # speakers, attendees or member logos have changed. Merge it to publish.
+#
+# Runs on our own PC (self-hosted runner), because ukreiif.com's firewall
+# blocks GitHub's servers. If the PC is off, the run waits until it is back.
 name: Sync from WordPress
 
 on:
@@ -16,22 +19,14 @@ concurrency:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - run: pip install -r sync/requirements.txt
+      - run: python -m pip install --quiet -r sync/requirements.txt
 
       - name: Compare with WordPress
-        run: python sync/sync_wordpress.py --summary "$RUNNER_TEMP/summary.md"
-
-      - name: Show summary on the run page
-        if: always()
-        run: cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+        run: python sync/sync_wordpress.py --summary "${{ runner.temp }}/summary.md"
 
       - name: Open or update the pull request
         uses: peter-evans/create-pull-request@v7

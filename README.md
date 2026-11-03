@@ -38,7 +38,9 @@ Page HTML can also live here in `pages/`. Event Maker then only needs this, past
 `pages/` to match: guest speakers, guest attendees and member logos. Event titles, dates,
 the Join form and the video are not touched.
 
-GitHub runs it every hour (`.github/workflows/sync-wordpress.yml`). When something changed it
+GitHub runs it every hour (`.github/workflows/sync-wordpress.yml`) on our own PC, a
+self-hosted runner, because ukreiif.com's firewall blocks GitHub's servers. If the PC is off,
+the run waits for it. When something changed it
 opens a pull request called **Sync from WordPress** listing what was added, removed or changed.
 Merge it to publish. Nothing changes on the site until you merge.
 
@@ -55,5 +57,7 @@ pip install -r sync/requirements.txt
 python sync/sync_wordpress.py --dry-run
 ```
 
-One-time GitHub setting: Settings → Actions → General → tick
-"Allow GitHub Actions to create and approve pull requests".
+One-time setup:
+- Settings → Actions → General → tick "Allow GitHub Actions to create and approve pull requests".
+- Settings → Actions → Runners → New self-hosted runner → Windows, then follow GitHub's commands
+  on the PC. Install it as a service running under your own Windows account.
