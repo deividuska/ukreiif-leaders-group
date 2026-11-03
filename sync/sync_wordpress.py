@@ -103,20 +103,42 @@ def pick(ours, wp, field):
 
 # ---------- read WordPress ----------
 
+def first_img(box, skip_cls=None):
+    """The first real image in box. Lazy loading adds a copy in <noscript> and a blank
+    placeholder pointing at data-src, so one picture can show up as several <img> tags."""
+    if not box:
+        return ''
+    for img in box.find_all('img'):
+        if skip_cls and img.find_parent(class_=skip_cls):
+            continue
+        src = img.get('data-src') or img.get('src', '')
+        if src and not src.startswith('data:'):
+            return src
+    return ''
+
+
 def wp_person(box, details, logo_cls):
     # Search the whole card: WordPress markup sometimes nests the text inside the photo tag
     ps = [' '.join(p.get_text(' ').split()) for p in details.find_all('p')
           if not p.find_parent(class_=logo_cls)]
-    photo = box.find('img')
-    logo = box.select_one(f'.{logo_cls} img')
     return {
         'name': ps[0] if ps else '',
         'title': ps[1] if len(ps) > 1 else '',
         'org': ps[2] if len(ps) > 2 else '',
-        'photo': (photo.get('data-src') or photo.get('src', '')) if photo else '',
-        'logo': (logo.get('data-src') or logo.get('src', '')) if logo else '',
+        'photo': first_img(box, logo_cls),
+        'logo': first_img(box.select_one(f'.{logo_cls}')),
         'bio': '',
     }
+
+
+def check_names(url, label, people):
+    """People are matched by name, so every card needs one and no name may appear twice."""
+    names = [key(p['name']) for p in people]
+    if '' in names:
+        raise Stop(f'{url}: a {label} card has no name')
+    twice = sorted({p['name'] for p in people if names.count(key(p['name'])) > 1})
+    if twice:
+        raise Stop(f'{url}: {label} listed twice: {", ".join(twice)}')
 
 
 def read_wp_event(url):
@@ -133,6 +155,8 @@ def read_wp_event(url):
         speakers.append(p)
     attendees = [wp_person(c, c.select_one('.guest-attendee-details'), 'guest-attendee-company-logo')
                  for c in soup.select('.leaders-group-guest-attendee-card')]
+    check_names(url, 'speaker', speakers)
+    check_names(url, 'attendee', attendees)
     return speakers, attendees
 
 
@@ -142,10 +166,13 @@ def read_wp_members():
     if not carousel:
         raise Stop(f'{MEMBERS_URL} no longer shows a Member Organisations carousel')
     out = []
-    for img in carousel.select('.lg-org-item img'):
-        src = img.get('data-src') or img.get('src', '')
-        span = img.find_parent('span')
-        name = (img.get('alt') or (span.get('title') if span else '') or '').strip() or logo_name(src)
+    for item in carousel.select('.lg-org-item'):
+        src = first_img(item)
+        if not src:
+            continue
+        span = item.find('span')
+        alt = next((i.get('alt') for i in item.find_all('img') if i.get('alt')), '')
+        name = (alt or (span.get('title') if span else '') or '').strip() or logo_name(src)
         out.append({'src': src, 'alt': name})
     if len(out) < 10:
         raise Stop(f'WordPress shows only {len(out)} member logos, expected many more')
@@ -238,6 +265,8 @@ def merge_people(label, ours, theirs, render, bio=False, combined=False):
     if ours and not theirs:
         raise Stop(f'{label}: WordPress shows nobody, but we list {len(ours)}. Not emptying the list')
     by_name = {key(o['name']): o for o in ours}
+    if len(by_name) != len(ours):
+        raise Stop(f'{label}: our page lists someone twice, so names cannot be matched safely')
     out, notes = [], []
     for w in theirs:
         o = by_name.get(key(w['name']))
