@@ -35,8 +35,10 @@ Page HTML can also live here in `pages/`. Event Maker then only needs this, past
 ## Sync from WordPress
 
 `sync/sync_wordpress.py` reads the public Leaders Group pages on ukreiif.com and updates
-`pages/` to match: guest speakers, guest attendees and member logos. Event titles, dates,
-the Join form and the video are not touched.
+`pages/` to match: event label, title, date and venue, guest speakers, guest attendees and
+member logos. On the main page it also follows the landing page (ukreiif.com/leaders-group-2026/):
+which event cards are shown, their order (the first one is "The Next UKREiiF Leaders Group",
+with the Guest Attendees carousel) and each card's button. The Join form and the video are not touched.
 
 Run it on your PC from the repo folder (ukreiif.com's firewall blocks GitHub's servers):
 
@@ -56,4 +58,7 @@ updates the files in `pages/`. Commit and push as usual to publish.
 - **Safety:** if WordPress shows an empty list, fails to load, or our page layout isn't recognised,
   the script stops and changes nothing.
 - **People added only here** (not on WordPress) are removed by the next sync. Add them on WordPress.
+- **New event on WordPress:** the script stops and names it. Then: create `pages/<name>.html`,
+  add a line to `EVENTS`, create the Event Maker page `/<name>` with the loader snippet
+  (`data-page="<name>"`), run the script again, commit and push.
 - **First time only:** `pip install -r sync/requirements.txt`

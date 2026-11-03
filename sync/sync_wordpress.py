@@ -1,7 +1,8 @@
 """Sync Leaders Group content from ukreiif.com (WordPress) into pages/.
 
-Reads the public WordPress pages, compares guest speakers, guest attendees and
-member logos with our pages, and rewrites only the items that changed.
+Reads the public WordPress pages, compares event details (title, date, venue),
+guest speakers, guest attendees, member logos and the landing page's event cards
+with our pages, and rewrites only the items that changed.
 Run from anywhere:
 
     python sync/sync_wordpress.py              # update pages/ and print a summary
@@ -15,21 +16,26 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
 WP = 'https://www.ukreiif.com'
 MEMBERS_URL = WP + '/leaders-group-events/'
+LANDING_URL = WP + '/leaders-group-2026/'
 
 # Which WordPress event feeds which of our pages
 EVENTS = [
     {'name': 'November', 'wp': '/leaders-group-events/leaders-group-november/', 'page': 'leaders-group-november'},
     {'name': 'December', 'wp': '/leaders-group-events/leaders-group-december/', 'page': 'leaders-group-december'},
     {'name': 'February', 'wp': '/leaders-group-events/leaders-group-february-2/', 'page': 'leaders-group-february'},
+    {'name': 'Glasgow', 'wp': '/leaders-group-events/leaders-group-february-3/', 'page': 'leaders-group-glasgow'},
 ]
 
 # Switch parts on (True) or off (False). Anything off is left exactly as it is.
 SYNC = {
+    'details': True,     # event label, title, date and venue (event pages and main page cards)
+    'cards': True,       # which event cards the main page shows, and in what order
     'speakers': True,
     'attendees': True,
     'members': True,
@@ -63,6 +69,11 @@ def fetch(url):
 def text(s):
     """Decoded text with single spaces."""
     return ' '.join(html.unescape(s).split())
+
+
+def words(el):
+    """Visible text of a WordPress element with single spaces ('' if it's missing)."""
+    return ' '.join(el.get_text(' ').split()) if el else ''
 
 
 def key(s):
@@ -157,7 +168,47 @@ def read_wp_event(url):
                  for c in soup.select('.leaders-group-guest-attendee-card')]
     check_names(url, 'speaker', speakers)
     check_names(url, 'attendee', attendees)
-    return speakers, attendees
+    info = soup.select_one('.leaders-group-event-info-block')
+    where = info.select('.leaders-group-event-details p')
+    details = {
+        'label': words(info.select_one('.leaders-group-event-header')),
+        'title': words(info.select_one('.leaders-group-event-subheader')),
+        'date': words(where[0]) if where else '',
+        'venue': words(where[1]) if len(where) > 1 else '',
+    }
+    if not details['label']:
+        raise Stop(f'{url}: the event has no heading')
+    return speakers, attendees, details
+
+
+def read_wp_landing():
+    """The landing page's event cards, in order: the Next event first, then the others."""
+    soup = BeautifulSoup(fetch(LANDING_URL), 'html.parser')
+    nxt = soup.select_one('.leaders-group-next-event-card')
+    if not nxt:
+        raise Stop(f'{LANDING_URL} no longer shows a Next event card')
+    cards = [(nxt, '.next-event-cta a')] + [(c, '.featured-event-cta a') for c in soup.select('.featured-event-card')]
+    out = []
+    for card, cta in cards:
+        d = {
+            'label': words(card.find('h3')),
+            'title': words(card.select_one('.event-subheader')),
+            'date': words(card.select_one('.event-datetime')),
+            'venue': words(card.select_one('.event-venue')),
+        }
+        a = card.select_one(cta)
+        href = a.get('href', '') if a else ''
+        if not href:
+            raise Stop(f'{LANDING_URL}: the card "{d["label"]}" has no Details button link')
+        path = urlparse(href).path.rstrip('/')
+        ev = next((e for e in EVENTS if e['wp'].rstrip('/') == path), None)
+        if ev is None:
+            raise Stop(f'WordPress shows a new event: {d["label"]} ({href}). There is no 2027 page for it yet. '
+                       f'Create the 2027 page and add it to EVENTS at the top of this script, then run again')
+        if any(e is ev for e, _ in out):
+            raise Stop(f'{LANDING_URL}: the event {ev["name"]} has two cards')
+        out.append((ev, d))
+    return out
 
 
 def read_wp_members():
@@ -287,7 +338,7 @@ def merge_people(label, ours, theirs, render, bio=False, combined=False):
     if both_ours != both_wp:
         notes.append(f'{label}: order changed')
     if notes and len(ours) != len(theirs):
-        notes.append(f'{label}: {len(ours)} &#8594; {len(theirs)}')
+        notes.append(f'{label}: {len(ours)} -> {len(theirs)}')
     return out, notes
 
 
@@ -308,7 +359,7 @@ def merge_members(ours, theirs):
     if [id(o) for o in ours if id(o) in kept] != kept:
         notes.append('order changed')
     if notes and len(ours) != len(theirs):
-        notes.append(f'{len(ours)} &#8594; {len(theirs)} logos')
+        notes.append(f'{len(ours)} -> {len(theirs)} logos')
     return out, notes
 
 
@@ -332,8 +383,42 @@ END_LIST = r'\n {6}</div>\n {4}</div>\n {2}</section>'
 END_TRACK = r'\n {12}</div>\n {12}<button class="ukl-arrow ukl-next"'
 
 
-def sync_event_page(page, ev, speakers, attendees):
+def field(name, ours, wp, notes):
+    """Keep our HTML when the text is the same, otherwise take WordPress's and note it."""
+    if key(ours) == key(wp):
+        return ours
+    if ours:
+        notes.append(f'{name}: "{text(ours)}" -> "{wp}"' if wp else f'{name}: removed "{text(ours)}"')
+    else:
+        notes.append(f'{name}: added "{wp}"')
+    return esc(wp)
+
+
+EVENT_HEAD = re.compile(r'(<section class="ukl-event-head">\n {4}<div class="ukl-wrap">\n)(.*?)(\n {4}</div>\n {2}</section>)', re.S)
+EVENT_HEAD_IN = re.compile(r' {6}<h4>(?P<label>.*)</h4>\n(?: {6}<h1>(?P<title>.*)</h1>\n)?'
+                           r' {6}<p>(?P<date>.*)</p>\n {6}<p>(?P<venue>.*)</p>')
+DETAILS = ('label', 'title', 'date', 'venue')
+
+
+def sync_event_head(page, ev, d):
+    m = EVENT_HEAD.search(page)
+    o = EVENT_HEAD_IN.fullmatch(m.group(2)) if m else None
+    if not o:
+        raise Stop(f'{ev["name"]} page header: layout not recognised, so it was left alone')
     notes = []
+    v = {f: field(f'Event {f}', o.group(f) or '', d[f], notes) for f in DETAILS}
+    lines = [f'      <h4>{v["label"]}</h4>']
+    if v['title']:
+        lines.append(f'      <h1>{v["title"]}</h1>')
+    lines += [f'      <p>{v["date"]}</p>', f'      <p>{v["venue"]}</p>']
+    return page[:m.start(2)] + '\n'.join(lines) + page[m.end(2):], notes
+
+
+def sync_event_page(page, ev, speakers, attendees, details):
+    notes = []
+    if SYNC['details']:
+        page, n = sync_event_head(page, ev, details)
+        notes += n
     if SYNC['speakers']:
         page, n = replace_items(page, f'{ev["name"]} page speakers', r'<div class="ukl-speakers">\n',
                                 r' {12}<div class="ukl-speaker">\n.*?\n {12}</div>', END_LIST,
@@ -349,32 +434,133 @@ def sync_event_page(page, ev, speakers, attendees):
     return page, notes
 
 
-def sync_main_card(page, ev, speakers, attendees):
-    start = page.find(f'href="/{ev["page"]}"')
-    if start < 0:
-        return page, []
-    start = page.rfind('<div class="ukl-card">', 0, start)
-    notes = []
+# ---------- main page event cards ----------
 
-    def card_end(p):
-        ends = [i for i in (p.find('<div class="ukl-card', start + 1), p.find('</section>', start)) if i > 0]
-        return min(ends)
+NEXT_SECTION = re.compile(r'(<h2 class="ukl-title">The Next UKREiiF Leaders Group</h2>\n)(.*?)'
+                          r'(\n {6}</div>\n {4}</div>\n {2}</section>)', re.S)
+MORE_SECTION = re.compile(r'(<div class="ukl-panel ukl-two">\n)(.*?)(\n {6}</div>\n {4}</div>\n {2}</section>)', re.S)
+CARD = re.compile(r' {8}<div class="ukl-card">\n.*?\n {8}</div>(?=\n|$)', re.S)
+CARD_IN = re.compile(
+    r' {8}<div class="ukl-card">\n'
+    r' {10}<h4>(?P<label>.*)</h4>\n'
+    r'(?: {10}<h3>(?P<title>.*)</h3>\n)?'
+    r' {10}<p class="ukl-date">(?P<date>.*)</p>\n'
+    r' {10}<p class="ukl-venue">(?P<venue>.*)</p>\n'
+    r'(?: {10}<p class="ukl-label">Guest Speakers</p>\n {10}<div class="ukl-people">\n'
+    r'(?P<speakers>(?: {12}<div class="ukl-person">.*\n)*) {10}</div>\n)?'
+    r'(?: {10}<p class="ukl-label">Guest Attendees</p>\n {10}<div class="ukl-carousel">\n'
+    r' {12}<button class="ukl-arrow ukl-prev" type="button" aria-label="Previous">&#8249;</button>\n'
+    r' {12}<div class="ukl-track">\n(?P<attendees>(?: {14}<div class="ukl-person">.*\n)*) {12}</div>\n'
+    r' {12}<button class="ukl-arrow ukl-next" type="button" aria-label="Next">&#8250;</button>\n {10}</div>\n)?'
+    r' {10}<div class="ukl-center"><a class="ukl-btn" href="/(?P<page>[^"]*)">Details &amp; Attendee List &gt;</a></div>\n'
+    r' {8}</div>')
 
-    if SYNC['speakers']:
-        page, n = replace_items(page, f'Main page {ev["name"]} speakers', r'<div class="ukl-people">\n',
-                                r' {12}<div class="ukl-person">[^\n]*', r'\n {10}</div>',
-                                lambda items: merge_people('Guest speakers', [parse_ours(i) for i in items], speakers,
-                                                           render_card_person(' ' * 12), combined=True),
-                                start, card_end(page))
-        notes += n or []
-    if SYNC['attendees']:
-        page, n = replace_items(page, f'Main page {ev["name"]} attendees', r'<div class="ukl-track">\n',
-                                r' {14}<div class="ukl-person">[^\n]*', END_TRACK,
-                                lambda items: merge_people('Guest attendees', [parse_ours(i) for i in items], attendees,
-                                                           render_card_person(' ' * 14), combined=True),
-                                start, card_end(page))
-        notes += n or []
-    return page, notes
+
+def read_main_cards(page):
+    """Our main page's event cards: the Next card, then the others, each checked against the known layout."""
+    nxt, more = NEXT_SECTION.search(page), MORE_SECTION.search(page)
+    if not nxt or not more:
+        raise Stop('Main page: event card sections not found, so they were left alone')
+    cards = []
+    for m, joiner, edge in ((nxt, '\n', ''), (more, '\n\n', '\n')):
+        raws = CARD.findall(m.group(2))
+        if edge + joiner.join(raws) + edge != m.group(2):
+            raise Stop('Main page: event card layout not recognised, so it was left alone')
+        for raw in raws:
+            c = CARD_IN.fullmatch(raw)
+            if not c:
+                raise Stop('Main page: an event card layout is not recognised, so it was left alone')
+            card = {f: c.group(f) or '' for f in DETAILS + ('page',)}
+            for f in ('speakers', 'attendees'):
+                card[f] = [parse_ours(l) for l in (c.group(f) or '').split('\n') if l]
+            cards.append(card)
+    if len(cards) != len({c['page'] for c in cards}):
+        raise Stop('Main page: two event cards link to the same page')
+    return nxt, more, cards
+
+
+def render_main_card(c, is_next):
+    lines = ['        <div class="ukl-card">', f'          <h4>{c["label"]}</h4>']
+    if c['title']:
+        lines.append(f'          <h3>{c["title"]}</h3>')
+    lines += [f'          <p class="ukl-date">{c["date"]}</p>', f'          <p class="ukl-venue">{c["venue"]}</p>']
+    if c['speakers']:
+        lines += ['          <p class="ukl-label">Guest Speakers</p>', '          <div class="ukl-people">']
+        lines += c['speakers'] + ['          </div>']
+    if is_next and c['attendees']:
+        lines += ['          <p class="ukl-label">Guest Attendees</p>',
+                  '          <div class="ukl-carousel">',
+                  '            <button class="ukl-arrow ukl-prev" type="button" aria-label="Previous">&#8249;</button>',
+                  '            <div class="ukl-track">']
+        lines += c['attendees']
+        lines += ['            </div>',
+                  '            <button class="ukl-arrow ukl-next" type="button" aria-label="Next">&#8250;</button>',
+                  '          </div>']
+    lines += [f'          <div class="ukl-center"><a class="ukl-btn" href="/{c["page"]}">Details &amp; Attendee List &gt;</a></div>',
+              '        </div>']
+    return '\n'.join(lines)
+
+
+def sync_main_page(page, landing, data):
+    """Rebuild the main page's event cards to follow the WordPress landing page:
+    which events, their order (first = The Next Leaders Group), details, people and buttons."""
+    nxt, more, cards = read_main_cards(page)
+    ours = {c['page']: c for c in cards}
+    wp = {ev['page']: (ev, d) for ev, d in landing}
+    if SYNC['cards']:
+        order = list(landing)
+    else:
+        order = []
+        for c in cards:
+            ev = next((e for e in EVENTS if e['page'] == c['page']), None)
+            if ev is None:
+                raise Stop(f'Main page: the card linking to /{c["page"]} is not in EVENTS')
+            order.append((ev, wp[c['page']][1] if c['page'] in wp else None))
+    report, out = {}, []
+    for i, (ev, d) in enumerate(order):
+        notes = report.setdefault(f'Main page, {ev["name"]} card', [])
+        is_next = i == 0
+        o = ours.get(ev['page'])
+        new = o is None
+        o = o or {'label': '', 'title': '', 'date': '', 'venue': '', 'speakers': [], 'attendees': []}
+        speakers, attendees = data[ev['page']]
+        c = {'page': ev['page']}
+        for f in DETAILS:
+            c[f] = field(f, o[f], d[f], [] if new else notes) if d and (SYNC['details'] or new) else o[f]
+        if SYNC['speakers'] or new:
+            c['speakers'], n = merge_people('Guest speakers', o['speakers'], speakers,
+                                            render_card_person(' ' * 12), combined=True)
+            notes += [] if new else n
+        else:
+            c['speakers'] = [p['raw'] for p in o['speakers']]
+        if is_next and (SYNC['attendees'] or not o['attendees']):
+            c['attendees'], n = merge_people('Guest attendees', o['attendees'], attendees,
+                                             render_card_person(' ' * 14), combined=True)
+            if o['attendees']:
+                notes += n
+            elif c['attendees'] and not new:
+                notes.append(f'now The Next Leaders Group: Guest Attendees carousel added ({len(c["attendees"])})')
+        else:
+            c['attendees'] = [p['raw'] for p in o['attendees']] if is_next else []
+            if o['attendees'] and not is_next:
+                notes.append('no longer The Next Leaders Group: Guest Attendees carousel removed')
+        if new:
+            notes.append(f'new card, {len(c["speakers"])} speakers'
+                         + (f', {len(c["attendees"])} attendees' if is_next else '')
+                         + f', button links to /{ev["page"]}')
+        out.append(render_main_card(c, is_next))
+    if not out:
+        raise Stop('Main page: WordPress shows no event cards. Not emptying the main page')
+    shown = [ev['page'] for ev, _ in order]
+    for c in cards:
+        if c['page'] not in shown:
+            name = next((e['name'] for e in EVENTS if e['page'] == c['page']), c['page'])
+            report.setdefault(f'Main page, {name} card', []).append('card removed (not on the WordPress landing page)')
+    if [p for p in shown if p in ours] != [c['page'] for c in cards if c['page'] in shown]:
+        report.setdefault('Main page', []).append('card order changed: ' + ', '.join(ev['name'] for ev, _ in order))
+    page = (page[:nxt.start(2)] + out[0] + page[nxt.end(2):more.start(2)]
+            + '\n' + '\n\n'.join(out[1:]) + '\n' + page[more.end(2):])
+    return page, report
 
 
 def sync_members(page, name, members):
@@ -410,6 +596,8 @@ def main():
     ap.add_argument('--dry-run', action='store_true', help='show changes without writing files')
     ap.add_argument('--summary', help='also write the summary (Markdown) to this file')
     args = ap.parse_args()
+    sys.stdout.reconfigure(errors='replace')  # Windows consoles can't show every character
+    sys.stderr.reconfigure(errors='replace')
 
     def path(name):
         return os.path.join(PAGES, name + '.html')
@@ -426,12 +614,18 @@ def main():
     report = {}
 
     try:
+        landing = read_wp_landing()
+        data = {}
         for ev in EVENTS:
-            speakers, attendees = read_wp_event(WP + ev['wp'])
-            files[ev['page']], notes = sync_event_page(files[ev['page']], ev, speakers, attendees)
+            if ev['page'] not in files:
+                raise Stop(f'pages/{ev["page"]}.html is missing (listed in EVENTS as {ev["name"]})')
+            speakers, attendees, details = read_wp_event(WP + ev['wp'])
+            data[ev['page']] = (speakers, attendees)
+            files[ev['page']], notes = sync_event_page(files[ev['page']], ev, speakers, attendees, details)
             report.setdefault(ev['name'], []).extend(notes)
-            files[MAIN_PAGE], notes = sync_main_card(files[MAIN_PAGE], ev, speakers, attendees)
-            report.setdefault(f'Main page, {ev["name"]} card', []).extend(notes)
+        files[MAIN_PAGE], notes = sync_main_page(files[MAIN_PAGE], landing, data)
+        for section, n in notes.items():
+            report.setdefault(section, []).extend(n)
 
         if SYNC['members']:
             members = read_wp_members()
