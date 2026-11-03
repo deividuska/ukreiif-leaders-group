@@ -38,26 +38,22 @@ Page HTML can also live here in `pages/`. Event Maker then only needs this, past
 `pages/` to match: guest speakers, guest attendees and member logos. Event titles, dates,
 the Join form and the video are not touched.
 
-GitHub runs it every hour (`.github/workflows/sync-wordpress.yml`) on our own PC, a
-self-hosted runner, because ukreiif.com's firewall blocks GitHub's servers. If the PC is off,
-the run waits for it. When something changed it
-opens a pull request called **Sync from WordPress** listing what was added, removed or changed.
-Merge it to publish. Nothing changes on the site until you merge.
-
-- **Run it now:** Actions tab → Sync from WordPress → Run workflow.
-- **Which events / which parts:** `EVENTS` and `SYNC` at the top of the script.
-- **Safety:** if WordPress shows an empty list, fails to load, or our page layout isn't recognised,
-  the run stops, changes nothing and shows as failed in the Actions tab.
-- **People added only here** (not on WordPress) are removed by the next sync. Add them on WordPress.
-
-Run locally to preview without changing files:
+Run it on your PC from the repo folder (ukreiif.com's firewall blocks GitHub's servers):
 
 ```bash
-pip install -r sync/requirements.txt
 python sync/sync_wordpress.py --dry-run
 ```
 
-One-time setup:
-- Settings → Actions → General → tick "Allow GitHub Actions to create and approve pull requests".
-- Settings → Actions → Runners → New self-hosted runner → Windows, then follow GitHub's commands
-  on the PC. Install it as a service running under your own Windows account.
+shows what would change without touching anything. Then
+
+```bash
+python sync/sync_wordpress.py
+```
+
+updates the files in `pages/`. Commit and push as usual to publish.
+
+- **Which events / which parts:** `EVENTS` and `SYNC` at the top of the script.
+- **Safety:** if WordPress shows an empty list, fails to load, or our page layout isn't recognised,
+  the script stops and changes nothing.
+- **People added only here** (not on WordPress) are removed by the next sync. Add them on WordPress.
+- **First time only:** `pip install -r sync/requirements.txt`
