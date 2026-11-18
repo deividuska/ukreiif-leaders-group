@@ -28,6 +28,7 @@ LANDING_URL = WP + '/leaders-group-2026/'
 EVENTS = [
     {'name': 'November', 'wp': '/leaders-group-events/leaders-group-november/', 'page': 'leaders-group-november'},
     {'name': 'December', 'wp': '/leaders-group-events/leaders-group-december/', 'page': 'leaders-group-december'},
+    {'name': 'January', 'wp': '/leaders-group-events/leaders-group-january-2/', 'page': 'leaders-group-january'},
     {'name': 'February', 'wp': '/leaders-group-events/leaders-group-february-2/', 'page': 'leaders-group-february'},
     {'name': 'Glasgow', 'wp': '/leaders-group-events/leaders-group-february-3/', 'page': 'leaders-group-glasgow'},
 ]
