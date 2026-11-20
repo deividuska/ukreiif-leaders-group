@@ -426,12 +426,16 @@ def sync_event_page(page, ev, speakers, attendees, details):
                                 lambda items: merge_people('Guest speakers', [parse_ours(i) for i in items],
                                                            speakers, render_speaker, bio=True))
         notes += n or []
+        if n is None and speakers:
+            notes.append(f'WARNING: WordPress shows {len(speakers)} guest speakers, but our page has no Guest Speakers section, so they were not added')
     if SYNC['attendees']:
         page, n = replace_items(page, f'{ev["name"]} page attendees', r'<div class="ukl-attendees">\n',
                                 r' {12}<div class="ukl-attendee">\n.*?\n {12}</div>', END_LIST,
                                 lambda items: merge_people('Guest attendees', [parse_ours(i) for i in items],
                                                            attendees, render_attendee))
         notes += n or []
+        if n is None and attendees:
+            notes.append(f'WARNING: WordPress shows {len(attendees)} guest attendees, but our page has no Guest Attendees section, so they were not added')
     return page, notes
 
 
